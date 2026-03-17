@@ -3,10 +3,13 @@ import time
 import random
 from datetime import datetime
 import logging
+from zoneinfo import ZoneInfo
 logging.basicConfig(level=logging.INFO)
 
 import requests
 from cours import Cours
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 def human_delay(min_sec=1, max_sec=3):
     time.sleep(random.uniform(min_sec, max_sec))
@@ -37,7 +40,7 @@ class Utilisateur:
         contenu = self.page.inner_text("body").lower()
         if "Pas de cours de prévu" in contenu:
             logging.info(f"Aucun cours prévu aujourd'hui pour {self.email}.")
-            self.derniere_maj = datetime.datetime.now()
+            self.derniere_maj = datetime.now(PARIS_TZ)
             return
 
         #sinon
@@ -55,8 +58,9 @@ class Utilisateur:
             heure_debut, heure_fin = horaires2.split("-")
             heure_debut = heure_debut.strip()
             heure_fin = heure_fin.strip()
-            heure_debut_dt = datetime.combine(datetime.today(), datetime.strptime(heure_debut, "%H:%M").time())
-            heure_fin_dt = datetime.combine(datetime.today(), datetime.strptime(heure_fin, "%H:%M").time())
+            today = datetime.now(PARIS_TZ).date()
+            heure_debut_dt = datetime.combine(today, datetime.strptime(heure_debut, "%H:%M").time(), tzinfo=PARIS_TZ)
+            heure_fin_dt = datetime.combine(today, datetime.strptime(heure_fin, "%H:%M").time(), tzinfo=PARIS_TZ)
 
             nom_cours = cols[1].inner_text().strip()
 
@@ -75,7 +79,7 @@ class Utilisateur:
                 heure_fin=heure_fin_dt
             ))
         
-        self.derniere_maj = datetime.now()
+        self.derniere_maj = datetime.now(PARIS_TZ)
 
     
     def se_connecter(self, playwright_instance, mot_de_passe):

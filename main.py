@@ -3,11 +3,14 @@ from urllib.parse import urljoin
 from datetime import datetime, timedelta
 import random
 import time
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import os
 import requests
 
 load_dotenv()
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
@@ -44,6 +47,10 @@ RETRY_SLEEP_MIN = 3
 RETRY_SLEEP_MAX = 8
 
 
+def now_in_paris():
+    return datetime.now(PARIS_TZ)
+
+
 def human_delay(min_sec=1, max_sec=3):
     time.sleep(random.uniform(min_sec, max_sec))
 
@@ -76,8 +83,10 @@ def login(page):
 def build_schedule_for_date(target_date, start_times):
     schedule = []
     for start_time in start_times:
-        start_dt = datetime.strptime(
-            f"{target_date} {start_time}", "%Y-%m-%d %H:%M"
+        start_dt = datetime.combine(
+            target_date,
+            datetime.strptime(start_time, "%H:%M").time(),
+            tzinfo=PARIS_TZ,
         )
         end_dt = start_dt + CLASS_DURATION
         schedule.append((start_dt, end_dt))
@@ -209,20 +218,20 @@ def main():
         ensure_logged_in(page, context)
 
         while True:
-            today = datetime.now().date()
+            today = now_in_paris().date()
             start_times = get_start_times_for_date(today)
 
             if start_times is None:
                 print("📅 Sunday: no checks")
-                next_day = datetime.combine(today + timedelta(days=1), datetime.min.time())
-                sleep_seconds = (next_day - datetime.now()).total_seconds()
+                next_day = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=PARIS_TZ)
+                sleep_seconds = (next_day - now_in_paris()).total_seconds()
                 time.sleep(max(0, sleep_seconds))
                 continue
 
             schedule = build_schedule_for_date(today, start_times)
 
             for start_dt, end_dt in schedule:
-                now = datetime.now()
+                now = now_in_paris()
                 if now > end_dt:
                     continue
 
@@ -266,7 +275,7 @@ def main():
                 print("📋 On attendance page, polling until it opens...")
 
                 # Poll the attendance page until it opens or class ends
-                while datetime.now() < end_dt:
+                while now_in_paris() < end_dt:
                     # Re-login if needed
                     if is_logged_out(page):
                         print("🔐 Session expired, logging back in...")
@@ -295,7 +304,7 @@ def main():
                         print(f"⚠️ Reload error: {exc}")
 
                     # Calculate appropriate sleep time based on how far into the class we are
-                    elapsed = datetime.now() - start_dt
+                    elapsed = now_in_paris() - start_dt
                     if elapsed <= timedelta(minutes=EARLY_ATTENDANCE_WINDOW_MIN):
                         sleep_min = EARLY_POLL_MIN
                         sleep_max = EARLY_POLL_MAX
@@ -314,8 +323,8 @@ def main():
 
             # All classes for today are done, sleep until tomorrow
             print("\n📅 All classes for today processed. Sleeping until tomorrow...")
-            next_day = datetime.combine(today + timedelta(days=1), datetime.min.time())
-            sleep_seconds = (next_day - datetime.now()).total_seconds()
+            next_day = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=PARIS_TZ)
+            sleep_seconds = (next_day - now_in_paris()).total_seconds()
             time.sleep(max(0, sleep_seconds))
 
         browser.close()

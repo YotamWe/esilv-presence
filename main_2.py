@@ -4,11 +4,14 @@ import os
 import datetime
 import time
 import logging
+from zoneinfo import ZoneInfo
 logging.basicConfig(level=logging.INFO)
 
 from utilisateur import Utilisateur
 
 load_dotenv()
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 users = [
     {
@@ -17,8 +20,12 @@ users = [
     }
 ]
 
+
+def now_in_paris():
+    return datetime.datetime.now(PARIS_TZ)
+
 def main():
-    last_date = datetime.datetime.now().date()
+    last_date = now_in_paris().date()
     with sync_playwright() as p:
         # Initialisation des utilisateurs
         utilisateurs = []
@@ -39,7 +46,7 @@ def main():
         while True:
 
             #si on est passé à une nouvelle journée, on met à jour les cours pour tous les utilisateurs
-            today_date = datetime.datetime.now().date()
+            today_date = now_in_paris().date()
             logging.info(f"last_date: {last_date}, today_date: {today_date}")
             if last_date != today_date:
                 logging.info("Nouvelle journée détectée, mise à jour des cours...")
@@ -61,7 +68,7 @@ def main():
                     continue
 
                 # vérifier si l'horaire pour le cours est bon
-                now = datetime.datetime.now()
+                now = now_in_paris()
 
                 # Fenetre 15 minutes avant 15 minutes après le début
                 if cours.heure_debut - datetime.timedelta(minutes=15) <= now <= cours.heure_debut + datetime.timedelta(minutes=15):
@@ -102,7 +109,7 @@ def main():
                 attente = min(delais)
             elif prochains_debuts:
                 prochain = min(prochains_debuts)
-                now = datetime.datetime.now()
+                now = now_in_paris()
                 attente = max(1, (prochain - now).total_seconds())
 
                 prochain_check = now + datetime.timedelta(seconds=attente)
@@ -110,10 +117,15 @@ def main():
                 logging.info(
                     f"Prochain cours dans {attente:.0f} secondes. "
                     f"Prochain check à {prochain_check.strftime('%Y-%m-%d %H:%M:%S')}."
+                    f"Il est actuellement {now.strftime('%Y-%m-%d %H:%M:%S')}."
                 )
             else:
-                now = datetime.datetime.now()
-                minuit = datetime.datetime.combine(now.date() + datetime.timedelta(days=1), datetime.time.min)
+                now = now_in_paris()
+                minuit = datetime.datetime.combine(
+                    now.date() + datetime.timedelta(days=1),
+                    datetime.time.min,
+                    tzinfo=PARIS_TZ,
+                )
                 attente = max(1, (minuit - now).total_seconds())
                 logging.info(f"Aucun cours à vérifier dans les prochaines heures, on attend jusqu'à minuit ({attente:.0f} secondes) avant de vérifier à nouveau.")
 

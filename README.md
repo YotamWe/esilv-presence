@@ -2,22 +2,32 @@
 
 Script Python qui surveille l'ouverture de l'appel sur my.devinci.fr, et envoie une notification lorsque qu'il est ouvert.
 
+
 ## Fonctionnement
 
 Le script :
-1. se connecte avec les identifiants définis dans `.env`
+1. se connecte avec les identifiants définis dans le `.env`
 2. charge les cours du jour, tous les jours à minuit
-3. vérifie l'état de chaque appel de facon régulière à partir de 15min avant le début du cours, et jusqu'à sa fin
-4. notifie via ntfy quand l'appel est ouvert
+3. vérifie l'état de chaque appel de facon régulière à partir de 15 min avant le début du cours, et jusqu'à sa fin
+4. notifie via [NTFY](https://ntfy.sh/) quand l'appel est ouvert
 5. est réglé pour ne pas faire de checks inutiles
 
 Toute la logique horaire est basée sur le fuseau **Europe/Paris**.
 
+## Avertissements ⚠️
+
+- Le script doit constamment tourner sur une machine pour fonctionner. Vous pouvez par exemple utiliser un VPS, ou tout autre ordinateur tournant en continu. Pour des raisons de confidentialité et de sécurité de vos identifiants, il n'est pas recommandé de proposer ce service tel quel à d'autres utilisateurs (c-à-d qu'il est de mauvaise pratique de donner ses identifiants devinci à un tiers).
+- Ce projet n'est en aucun cas affilié au Pole Universitaire Léonard de Vinci, ni a l'ESILV, et a été réalisé a seul but éducatif.
+- Ce script contient potentiellement des bugs. Le bon fonctionnement de ce script ne peut pas être garanti. Merci de bien vouloir remonter tout bug trouvé dans [les issues](https://github.com/Fanto66/esilv-presence/issues)
+
+
 ## Prérequis
 
 - Python 3.11+
-- Windows, macOS ou Linux
-- Un compte étudiant my.devinci.fr valide
+- Windows, macOS ou Linux, pour faire tourner le script
+- Un compte étudiant my.devinci.fr valide, pour récupérer les cours
+- Un compte [NTFY](https://ntfy.sh/) avec un sujet (gratuit), pour les notifications
+
 
 ## Installation
 
@@ -44,15 +54,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3) Installer les dépendances
+### 3) Installer les dépendances dans cet environnement virtuel
 
 ```bash
 pip install playwright python-dotenv requests
 python -m playwright install chromium
 ```
 
-
-## Configuration
+### 4) Configurer le projet
 
 1. Renommer `.env-example` en `.env`
 2. Remplir vos identifiants

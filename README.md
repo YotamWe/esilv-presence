@@ -1,6 +1,6 @@
 # ESILV/PULV Notifier
 
-Script Python qui surveille l'ouverture de l'appel sur my.devinci.fr, et envoie une notification lorsque qu'il est ouvert.
+Script Python qui surveille l'ouverture de l'appel sur my.devinci.fr, et envoie une notification lorsqu'il est ouvert.
 
 
 ## Fonctionnement
@@ -8,7 +8,7 @@ Script Python qui surveille l'ouverture de l'appel sur my.devinci.fr, et envoie 
 Le script :
 1. se connecte avec les identifiants définis dans le `.env`
 2. charge les cours du jour, tous les jours à minuit
-3. vérifie l'état de chaque appel de facon régulière à partir de 15 min avant le début du cours, et jusqu'à sa fin
+3. vérifie l'état de chaque appel de façon régulière à partir de 15 min avant le début du cours, et jusqu'à sa fin
 4. notifie via [NTFY](https://ntfy.sh/) quand l'appel est ouvert
 5. est réglé pour ne pas faire de checks inutiles
 
@@ -16,9 +16,10 @@ Toute la logique horaire est basée sur le fuseau **Europe/Paris**.
 
 ## Avertissements ⚠️
 
-- Le script doit constamment tourner sur une machine pour fonctionner. Vous pouvez par exemple utiliser un VPS, ou tout autre ordinateur tournant en continu. Pour des raisons de confidentialité et de sécurité de vos identifiants, il n'est pas recommandé de proposer ce service tel quel à d'autres utilisateurs (c-à-d qu'il est de mauvaise pratique de donner ses identifiants devinci à un tiers).
-- Ce projet n'est en aucun cas affilié au Pole Universitaire Léonard de Vinci, ni a l'ESILV, et a été réalisé a seul but éducatif.
-- Ce script contient potentiellement des bugs. Le bon fonctionnement de ce script ne peut pas être garanti. Merci de bien vouloir remonter tout bug trouvé dans [les issues](https://github.com/Fanto66/esilv-presence/issues)
+- Le script doit constamment tourner sur une machine pour fonctionner. Il est recommandé d'utiliser un VPS, ou une machine allumée en continu. Pour des raisons de confidentialité et de sécurité de vos identifiants, il n'est pas recommandé de proposer ce service tel quel à d'autres utilisateurs (c-à-d qu'il est de mauvaise pratique de donner ses identifiants DeVinci à un tiers).
+- Ce projet n'est en aucun cas affilié au Pôle Universitaire Léonard de Vinci, ni à l'ESILV, et a été réalisé à seul but éducatif.
+- Ce script contient potentiellement des bugs. Le bon fonctionnement de ce script ne peut pas être garanti. Merci de signaler tout bug via les [issues](https://github.com/Fanto66/esilv-presence/issues)
+- L'utilisation de ce script se fait à vos propres risques et périls. Aucune responsabilité ne pourra être engagée en cas de blocage de compte, d'une limitation temporaire, d'un bannissement, ou de tout autre dommage résultant de l'utilisation de ce script, notamment (sans s'y limiter) en cas de volume de requêtes excessif ou de non-respect des conditions d'utilisation du service cible.
 
 
 ## Prérequis
@@ -26,7 +27,7 @@ Toute la logique horaire est basée sur le fuseau **Europe/Paris**.
 - Python 3.11+
 - Windows, macOS ou Linux, pour faire tourner le script
 - Un compte étudiant my.devinci.fr valide, pour récupérer les cours
-- Un compte [NTFY](https://ntfy.sh/) avec un sujet (gratuit), pour les notifications
+- Un sujet [NTFY](https://ntfy.sh/) (gratuit), pour les notifications
 
 
 ## Installation
@@ -61,11 +62,11 @@ pip install playwright python-dotenv requests
 python -m playwright install chromium
 ```
 
-### 4) Configurer le projet
+### 4) Configurer les variables .env
 
 1. Renommer `.env-example` en `.env`
 2. Remplir vos identifiants
-3. Ajouter votre [sujet NTFY](https://ntfy.sh/) ; n'oubliez pas d'installer l'application NTFY sur votre téléphone !
+3. Ajouter votre [sujet NTFY](https://ntfy.sh/). Installer l'application NTFY sur mobile pour recevoir les notifications !
 
 
 ## Lancement

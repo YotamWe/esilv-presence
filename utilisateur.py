@@ -48,7 +48,12 @@ class Utilisateur:
             return
 
         #sinon
-        self.page.wait_for_selector("#body_presences")
+        try:
+            self.page.wait_for_selector("#body_presences", timeout=15000)
+        except:
+            logging.info(f"Pas de cours aujourd'hui pour {self.email}, on attend demain.")
+            self.planning = []
+            return
         rows = self.page.query_selector_all("#body_presences tr")
         for row in rows:
             cols = row.query_selector_all("td")

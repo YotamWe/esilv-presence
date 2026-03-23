@@ -4,6 +4,11 @@
 # Fichiers cache
 __pycache__/
 *.pyc
+.venv/
 
 #Fichiers de test
 html_files/
+
+# Logs
+logs/*.log
+logs/*.log.*

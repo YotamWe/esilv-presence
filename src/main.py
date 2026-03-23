@@ -5,7 +5,23 @@ import datetime
 import time
 import logging
 from zoneinfo import ZoneInfo
-logging.basicConfig(level=logging.INFO)
+from workalendar.europe import France
+from logging.handlers import TimedRotatingFileHandler
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        TimedRotatingFileHandler(
+            "logs/presence.log",
+            when="midnight",
+            interval=1,
+            backupCount=7,
+            encoding="utf-8"
+        ),
+        logging.StreamHandler()
+    ]
+)
 
 from utilisateur import Utilisateur
 
@@ -23,6 +39,12 @@ users = [
 
 def now_in_paris():
     return datetime.datetime.now(PARIS_TZ)
+
+def est_jour_ferie():
+    """Retourne True si aujourd'hui est un jour férié en France."""
+    cal = France()
+    now = now_in_paris()
+    return cal.is_holiday(now.date())
 
 def dormir_jusqua_minuit():
     now = now_in_paris()
@@ -121,6 +143,19 @@ def main():
             now = now_in_paris()
             if now.weekday() >= 5:
                 time.sleep(dormir_jusqua_lundi())
+                continue
+                
+            # Jours fériés
+            if est_jour_ferie():
+                now = now_in_paris()
+                minuit = datetime.datetime.combine(
+                    now.date() + datetime.timedelta(days=1),
+                    datetime.time.min,
+                    tzinfo=PARIS_TZ,
+                )
+                attente = (minuit - now).total_seconds()
+                logging.info(f"Jour férié détecté, on dort jusqu'à demain ({attente:.0f} secondes).")
+                time.sleep(attente)
                 continue
 
             # Nouvelle journée

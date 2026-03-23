@@ -6,9 +6,24 @@ import random
 from datetime import datetime
 import logging
 from zoneinfo import ZoneInfo
+from logging.handlers import TimedRotatingFileHandler
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        TimedRotatingFileHandler(
+            "logs/presence.log",
+            when="midnight",
+            interval=1,
+            backupCount=7,
+            encoding="utf-8"
+        ),
+        logging.StreamHandler()
+    ]
+)
 
 import requests
 from cours import Cours
@@ -25,6 +40,8 @@ class Utilisateur:
         self.browser_context = None
         self.page = None
         self.derniere_maj = None
+        self.mot_de_passe = None
+        self.playwright_instance = None 
 
     def maj_cours_du_jour(self): #Récupère les cours du jour et les ajoute au planning
         if not self.page:
@@ -37,7 +54,7 @@ class Utilisateur:
 
         logging.info(f"Récupération des cours pour {self.email}...")
 
-        self.page.goto("https://my.devinci.fr/student/presences/")
+        self.verifier_session()
 
         # Vérification de la présence de cours ajd
         self.page.wait_for_selector("body")
@@ -93,6 +110,8 @@ class Utilisateur:
 
     
     def se_connecter(self, playwright_instance, mot_de_passe):
+        self.mot_de_passe = mot_de_passe
+        self.playwright_instance = playwright_instance
         logging.info(f"Connexion de {self.email}...")
         browser = playwright_instance.chromium.launch(headless=True)
         self.browser_context = browser.new_context()
@@ -113,6 +132,30 @@ class Utilisateur:
         self.page.wait_for_url("https://my.devinci.fr/**")
 
         logging.info(f"{self.email} connecté avec succès !")
+    
+    def _reconnecter(self):
+        """Tente de se reconnecter, retourne True si succès, False sinon."""
+        try:
+            self.se_connecter(self.playwright_instance, self.mot_de_passe)
+            logging.info(f"Reconnexion réussie pour {self.email}.")
+            return True
+        except Exception as e:
+            logging.error(f"Échec de la reconnexion pour {self.email} : {e}")
+            return False
+    
+    def verifier_session(self):
+        """Vérifie si la session est toujours active, sinon se reconnecte."""
+        try:
+            self.page.goto("https://my.devinci.fr/student/presences/", timeout=10000)
+            # Si on est redirigé vers la page de login, on est déconnecté
+            if "adfs.devinci.fr" in self.page.url or "login" in self.page.url:
+                logging.warning(f"Session expirée pour {self.email}, reconnexion...")
+                return self._reconnecter()
+            return True
+        except Exception as e:
+            logging.error(f"Erreur lors de la vérification de session pour {self.email} : {e}")
+            logging.info(f"Tentative de reconnexion pour {self.email}...")
+            return self._reconnecter()
 
     def notifier(self, message):
         ntfy_sujet = os.getenv("SUJET")

@@ -113,15 +113,15 @@ class Utilisateur:
         self.mot_de_passe = mot_de_passe
         self.playwright_instance = playwright_instance
         logging.info(f"Connexion de {self.email}...")
-        browser = playwright_instance.chromium.launch(headless=True)
+        browser = playwright_instance.chromium.launch(headless=False)
         self.browser_context = browser.new_context()
         self.page = self.browser_context.new_page()
 
         self.page.goto("https://my.devinci.fr/")
 
-        self.page.type("#login", self.email, delay=random.randint(50, 150))
+        self.page.type("##email", self.email, delay=random.randint(50, 150))
         human_delay()
-        self.page.click("#btn_next")
+        self.page.click('button.btn-primary')
 
         self.page.wait_for_url("**adfs.devinci.fr**")
 

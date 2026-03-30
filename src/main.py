@@ -23,6 +23,7 @@ logging.basicConfig(
     ]
 )
 
+from cours import Cours
 from utilisateur import Utilisateur
 
 load_dotenv()
@@ -87,7 +88,7 @@ def calculer_attente(delais, prochains_debuts):
         return dormir_jusqua_minuit()
 
 
-def traiter_cours(utilisateur, cours, delais, prochains_debuts):
+def traiter_cours(utilisateur: Utilisateur, cours: Cours, delais, prochains_debuts):
     if cours.deja_notifie:
         logging.info(f"Le cours {cours.identifiant} déjà notifié, on passe.")
         return

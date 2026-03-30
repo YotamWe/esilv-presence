@@ -119,7 +119,7 @@ class Utilisateur:
 
         self.page.goto("https://my.devinci.fr/")
 
-        self.page.type("##email", self.email, delay=random.randint(50, 150))
+        self.page.type("#email", self.email, delay=random.randint(50, 150))
         human_delay()
         self.page.click('button.btn-primary')
 

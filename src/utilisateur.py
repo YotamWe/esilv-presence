@@ -113,7 +113,7 @@ class Utilisateur:
         self.mot_de_passe = mot_de_passe
         self.playwright_instance = playwright_instance
         logging.info(f"Connexion de {self.email}...")
-        browser = playwright_instance.chromium.launch(headless=False)
+        browser = playwright_instance.chromium.launch(headless=True)
         self.browser_context = browser.new_context()
         self.page = self.browser_context.new_page()
 

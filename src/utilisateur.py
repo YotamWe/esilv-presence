@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 from zoneinfo import ZoneInfo
 from logging.handlers import TimedRotatingFileHandler
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 load_dotenv()
 
@@ -59,7 +60,7 @@ class Utilisateur:
         # Vérification de la présence de cours ajd
         self.page.wait_for_selector("body")
         contenu = self.page.inner_text("body").lower()
-        if "Pas de cours de prévu" in contenu:
+        if "pas de cours de prévu" in contenu:
             logging.info(f"Aucun cours prévu aujourd'hui pour {self.email}.")
             self.derniere_maj = datetime.now(PARIS_TZ)
             return
@@ -67,9 +68,10 @@ class Utilisateur:
         #sinon
         try:
             self.page.wait_for_selector("#body_presences", timeout=15000)
-        except:
+        except PlaywrightTimeoutError:
             logging.info(f"Pas de cours aujourd'hui pour {self.email}, on attend demain.")
             self.planning = []
+            self.derniere_maj = datetime.now(PARIS_TZ)
             return
         rows = self.page.query_selector_all("#body_presences tr")
         for row in rows:

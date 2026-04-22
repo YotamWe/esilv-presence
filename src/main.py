@@ -30,12 +30,8 @@ load_dotenv()
 
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
-users = [
-    {
-        "email": os.getenv("EMAIL_1"),
-        "password": os.getenv("PASSWORD_1")
-    }
-]
+EMAIL = os.getenv("EMAIL_1")
+PASSWORD = os.getenv("PASSWORD_1")
 
 
 def now_in_paris():
@@ -59,7 +55,7 @@ def dormir_jusqua_minuit():
     return attente
 
 
-def dormir_jusqua_lundi():
+def dormir_jusqua_lundi(raison="Week-end détecté"):
     now = now_in_paris()
     minuit_lundi = datetime.datetime.combine(
         now.date() + datetime.timedelta(days=(7 - now.weekday())),
@@ -67,8 +63,26 @@ def dormir_jusqua_lundi():
         tzinfo=PARIS_TZ,
     )
     attente = (minuit_lundi - now).total_seconds()
-    logging.info(f"Week-end détecté, on dort jusqu'à lundi ({attente:.0f} secondes).")
+    logging.info(f"{raison}, on dort jusqu'à lundi ({attente:.0f} secondes).")
     return attente
+
+
+def _gerer_semaine(utilisateur, last_week, semaine_avec_cours):
+    current_week = now_in_paris().isocalendar()[:2]
+    if current_week != last_week:
+        logging.info("Nouvelle semaine détectée, scan du calendrier...")
+        semaine_avec_cours = utilisateur.verifier_semaine_avec_cours()
+        last_week = current_week
+    return last_week, semaine_avec_cours
+
+
+def _gerer_jour(utilisateur, last_date):
+    today_date = now_in_paris().date()
+    if last_date != today_date:
+        logging.info("Nouvelle journée détectée, mise à jour des cours...")
+        utilisateur.maj_cours_du_jour()
+        last_date = today_date
+    return last_date
 
 
 def calculer_attente(delais, prochains_debuts):
@@ -127,28 +141,25 @@ def traiter_cours(utilisateur: Utilisateur, cours: Cours, delais, prochains_debu
 
 
 def main():
-    last_date = now_in_paris().date()
+    # Initialisé à hier pour forcer maj_cours_du_jour() au premier tour de boucle
+    last_date = now_in_paris().date() - datetime.timedelta(days=1)
+    last_week = (-1, -1)  # Force le scan du calendrier au premier tour de boucle
+    semaine_avec_cours = True
 
     with sync_playwright() as p:
-        utilisateurs = []
-        logging.info("Initialisation des utilisateurs...")
-        for user_info in users:
-            utilisateur = Utilisateur(user_info["email"])
-            utilisateur.se_connecter(p, user_info["password"])
-            utilisateur.maj_cours_du_jour()
-            utilisateurs.append(utilisateur)
-        logging.info(f"{len(utilisateurs)} utilisateur(s) initialisé(s).")
+        logging.info("Initialisation de l'utilisateur...")
+        utilisateur = Utilisateur(EMAIL)
+        utilisateur.se_connecter(p, PASSWORD)
+        logging.info("Utilisateur initialisé.")
 
         while True:
-            # Week-end : dormir jusqu'à lundi
             now = now_in_paris()
+
             if now.weekday() >= 5:
                 time.sleep(dormir_jusqua_lundi())
                 continue
-                
-            # Jours fériés
+
             if est_jour_ferie():
-                now = now_in_paris()
                 minuit = datetime.datetime.combine(
                     now.date() + datetime.timedelta(days=1),
                     datetime.time.min,
@@ -159,19 +170,16 @@ def main():
                 time.sleep(attente)
                 continue
 
-            # Nouvelle journée
-            today_date = now_in_paris().date()
-            if last_date != today_date:
-                logging.info("Nouvelle journée détectée, mise à jour des cours...")
-                for utilisateur in utilisateurs:
-                    utilisateur.maj_cours_du_jour()
-                last_date = today_date
+            last_week, semaine_avec_cours = _gerer_semaine(utilisateur, last_week, semaine_avec_cours)
 
-            # Traitement des cours
+            if not semaine_avec_cours:
+                time.sleep(dormir_jusqua_lundi("Semaine sans cours (entreprise)"))
+                continue
+
+            last_date = _gerer_jour(utilisateur, last_date)
+
             delais = []
             prochains_debuts = []
-            utilisateur = utilisateurs[0]
-
             logging.info(f"Vérification des cours pour {utilisateur.email}...")
             for cours in utilisateur.planning:
                 traiter_cours(utilisateur, cours, delais, prochains_debuts)

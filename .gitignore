@@ -8,6 +8,7 @@ __pycache__/
 
 #Fichiers de test
 html_files/
+tests/
 
 # Logs
 logs/*.log

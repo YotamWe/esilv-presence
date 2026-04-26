@@ -6,25 +6,9 @@ import random
 from datetime import datetime
 import logging
 from zoneinfo import ZoneInfo
-from logging.handlers import TimedRotatingFileHandler
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 load_dotenv()
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        TimedRotatingFileHandler(
-            "logs/presence.log",
-            when="midnight",
-            interval=1,
-            backupCount=7,
-            encoding="utf-8"
-        ),
-        logging.StreamHandler()
-    ]
-)
 
 import requests
 from cours import Cours
@@ -37,18 +21,19 @@ def human_delay(min_sec=1, max_sec=3):
 class Utilisateur:
     def __init__(self, email):
         self.email = email
-        self.planning = [] #on commence avec un planning vide
+        self.planning = []
+        self.browser = None
         self.browser_context = None
         self.page = None
         self.derniere_maj = None
         self.mot_de_passe = None
-        self.playwright_instance = None 
+        self.playwright_instance = None
 
     def maj_cours_du_jour(self): #Récupère les cours du jour et les ajoute au planning
         if not self.page:
             logging.error("Erreur : L'utilisateur doit être connecté pour récupérer les cours.")
             return
-        
+
         logging.info(f"Suppression des cours de {self.email}...")
 
         self.planning.clear() #on vide le planning
@@ -92,16 +77,25 @@ class Utilisateur:
 
             nom_cours = cols[1].inner_text().strip()
 
+            if "examen" in nom_cours.lower():
+                logging.info(f"Cours ignoré (examen) : {nom_cours}")
+                continue
+
             intervenant = cols[2].inner_text().strip()
 
             presence_link = None
             presence = cols[3].query_selector("a")
             if presence:
                 presence_link = presence.get_attribute("href")
+
+            if not presence_link:
+                logging.info(f"Cours ignoré (aucun lien de présence) : {nom_cours}")
+                continue
+
             logging.info(f"{nom_cours} ({horaires}) par {intervenant}) lu pour {self.email}")
 
             self.planning.append(Cours(
-                identifiant=presence_link.split("/")[-1] if presence_link else None,
+                identifiant=presence_link.split("/")[-1],
                 utilisateur=self,
                 denomination=nom_cours,
                 heure_debut=heure_debut_dt,
@@ -111,12 +105,36 @@ class Utilisateur:
         self.derniere_maj = datetime.now(PARIS_TZ)
 
     
+    def verifier_semaine_avec_cours(self):
+        """Retourne True si la semaine courante contient des cours selon le calendrier deVinci."""
+        if not self.page:
+            logging.error("Pas de page disponible pour scanner le calendrier.")
+            return True
+        try:
+            self.page.goto("https://my.devinci.fr/?my=edt", timeout=15000)
+            if "adfs.devinci.fr" in self.page.url or "login" in self.page.url:
+                logging.warning(f"Session expirée lors du scan du calendrier pour {self.email}, reconnexion...")
+                if not self._reconnecter():
+                    return True
+                self.page.goto("https://my.devinci.fr/?my=edt", timeout=15000)
+            self.page.wait_for_load_state("networkidle", timeout=20000)
+            try:
+                self.page.wait_for_selector(".b-weekview-content .b-cal-event-wrap", timeout=8000)
+                logging.info("Scan calendrier : des cours sont prévus cette semaine.")
+                return True
+            except PlaywrightTimeoutError:
+                logging.info("Scan calendrier : aucun cours prévu cette semaine.")
+                return False
+        except Exception as e:
+            logging.error(f"Erreur lors du scan du calendrier : {e}")
+            return True  # Par sécurité, on suppose qu'il y a des cours
+
     def se_connecter(self, playwright_instance, mot_de_passe):
         self.mot_de_passe = mot_de_passe
         self.playwright_instance = playwright_instance
         logging.info(f"Connexion de {self.email}...")
-        browser = playwright_instance.chromium.launch(headless=True)
-        self.browser_context = browser.new_context()
+        self.browser = playwright_instance.chromium.launch(headless=True)
+        self.browser_context = self.browser.new_context()
         self.page = self.browser_context.new_page()
 
         self.page.goto("https://my.devinci.fr/")
@@ -136,7 +154,15 @@ class Utilisateur:
         logging.info(f"{self.email} connecté avec succès !")
     
     def _reconnecter(self):
-        """Tente de se reconnecter, retourne True si succès, False sinon."""
+        """Ferme le navigateur existant, puis se reconnecte. Retourne True si succès."""
+        try:
+            if self.browser:
+                self.browser.close()
+        except Exception:
+            pass
+        self.browser = None
+        self.browser_context = None
+        self.page = None
         try:
             self.se_connecter(self.playwright_instance, self.mot_de_passe)
             logging.info(f"Reconnexion réussie pour {self.email}.")
